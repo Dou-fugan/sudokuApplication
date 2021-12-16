@@ -1,0 +1,3 @@
+var heuristicSearch=()=>{
+    return "heuristicSearch";
+}

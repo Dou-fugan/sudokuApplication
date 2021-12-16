@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link href="./styles.css" rel="stylesheet">
+    <title>Hello sudoku!</title>
+    <script src="./lib/element_lib/vue.js"></script>
+    <script src="./lib/element_lib/index.js"></script>
+    <script src="./js/backtracking.js"></script>
+    <script src="./js/dancingLink.js"></script>
+    <script src="./lib/element_lib/index.js"></script>
+    <script src="./lib/element_lib/index.js"></script>
+    <!-- Insert this line above script imports  -->
+    <script>if (typeof module === 'object') {window.module = module; module = undefined;}</script>
+    <!-- Insert this line after script imports -->
+    <script>if (window.module) module = window.module;</script>
+    <script src="./lib/jquery.min.js"></script>
+    <script>
+        const path = require('path');
+        const fs = require("fs");
+        const {ipcRenderer} =require('electron');
+    </script>
+    <style>
+        @import url("./lib/element_lib/index.css");
+    </style>
+</head>
+<body style="width: 780px">
+<div class="head" style="height: 110px">
+<!--    <div style="display:flex;align-items:center;justify-content:center;height: 100px;width: 300px">-->
+    <div id="app2" style="width: 780px" class="grid1">
+        <div ></div>
+        <div >
+            <div>
+                <div>
+                    <template>
+                        <div class="block" >
+                            <el-carousel trigger="click" :autoplay="autoplay" height="100px" >
+                                <el-carousel-item v-for="item in arr" :key="item">
+                                    <h1 class="large algorithm">{{ item }}</h1>
+                                </el-carousel-item>
+                            </el-carousel>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+        <div style="padding-top: 30px;padding-left: 34px;width: 100px;">运行时间：{{time}}s</div>
+        <div ></div>
+    </div>
+    <style>
+        .grid1{
+            display: grid;
+            grid-template-columns: 1fr 350px 1fr 1fr;
+        }
+    </style>
+<!--    </div>-->
+
+</div>
+<!--负责整体居中-->
+<div style="display:flex;align-items:center;justify-content:center;height: 100%" >
+    <div>
+        <div style="display: inline-block;vertical-align: top;">
+            <div>
+                <div style="padding: 0px" id="app1">
+                    <div style="" class="btn-pri">
+                        <el-button type="primary" onclick="loadSudoku()">加载数据</el-button>
+                    </div>
+                    <div style="" class="btn-pri">
+                        <el-button type="primary" onclick="runDown()">连续运行</el-button>
+                    </div>
+                    <div style="" class="btn-pri">
+                        <el-button type="primary" onclick="runStep()">单步运行</el-button>
+                    </div>
+                    <div style="" class="btn-pri">
+                        <el-button type="primary" onclick="runDownSlowly()">慢速运行</el-button>
+                    </div>
+                    <div style="" class="btn-pri">
+                        <el-button type="primary" onclick="generateInitSudoku()">生成初盘</el-button>
+                    </div>
+<!--                    <div style="">-->
+<!--                        <el-button type="primary">主要按钮</el-button>-->
+<!--                    </div>-->
+                </div>
+            </div>
+        </div>
+        <div style="display: inline-block;height: 100%;width: 80px"></div>
+        <div style="display: inline-block">
+            <div style="display:flex;align-items:center;justify-content:center;height: 100%" >
+                <!--作为数独九宫格的外侧框架-->
+                <div>
+                    <!--九个宫-->
+                    <table>
+                        <tr>
+                            <td class="place"></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+
+<!-- You can also require other files to run in this process -->
+<script src="./renderer.js"></script>
+<script>
+</script>
+<script>
+    //sudoku数据就是初盘数据，后面的变化存放在矩阵中
+    sudoku=readFilePath();
+    var places=$(".place");
+    var vueInstance1=new Vue().$mount('#app1');
+    var carousel={
+        data:()=>{
+            return {
+                autoplay:false,
+                arr:[
+                    "回溯法",
+                    "启发式搜索",
+                    "舞蹈链",
+                    "分支限界"
+                ],
+                time:9999
+            };
+        }
+    }
+    var f2=Vue.extend(carousel);
+    var vueInstance2=new f2().$mount('#app2');
+
+
+    for(let i=0;i<9;i++){
+        let tr=document.createElement("tr")
+        for(let k=0;k<9;k++){
+            let td=document.createElement("td");
+            td.setAttribute("class","lattice");
+            tr.append(td);
+        }
+        places[0].append(tr)
+    }
+
+    //获得所有lattice（顺序不可以改变）
+    var lattice=$(".lattice");
+
+    for(let i=0;i<9;i++){
+        lattice[i*9+2].setAttribute("style","border-right:4px solid;")
+        lattice[i*9+5].setAttribute("style","border-right:4px solid;")
+        lattice[2*9+i].setAttribute("style","border-bottom:4px solid;")
+        lattice[5*9+i].setAttribute("style","border-bottom:4px solid;")
+        lattice[2*9+2].setAttribute("style","border-bottom:4px solid;border-right:4px solid;")
+        lattice[5*9+2].setAttribute("style","border-bottom:4px solid;border-right:4px solid;")
+        lattice[2*9+5].setAttribute("style","border-bottom:4px solid;border-right:4px solid;")
+        lattice[5*9+5].setAttribute("style","border-bottom:4px solid;border-right:4px solid;")
+    }
+
+    function render(sudoku){
+
+        for(let i=0;i<9;i++){
+            for(let j=0;j<9;j++){
+                $(lattice[9*i+j]).removeClass("woc1")
+                if(sudoku[i][j]===0){
+                    lattice[9*i+j].innerText='';
+                }else {
+                    lattice[9*i+j].innerText=sudoku[i][j];
+                    $(lattice[9*i+j]).addClass("woc1");
+                }
+            }
+        }
+    }
+    var renderSudoku=(data)=>{
+        let sudokuStat=data.sudoku;
+        for(let i=0;i<9;i++){
+            for(let j=0;j<9;j++){
+                $(lattice[9*i+j]).removeClass("woc")
+                $(lattice[9*i+j]).removeClass("niubi")
+                if(sudoku[i][j]===0){
+                    lattice[9*i+j].innerText='';
+                }else {
+                    lattice[9*i+j].innerText=sudokuStat[i][j];
+                    $(lattice[9*i+j]).addClass("woc")
+                }
+                if(i===data.i){
+                    lattice[9*i+j].addClass("niubi");
+                }
+                if(j===data.k){
+                    $(lattice[9*i+j]).addClass("woc")
+                }
+                if(Math.floor(i/3)===data.i&&Math.floor(j/3)===data.k){
+                    $(lattice[9*i+j]).addClass("woc")
+                }
+            }
+        }
+    }
+
+    //超级无敌大状态矩阵
+    var statMatrix={
+        backtracking:[1,0,[]],
+        dancingLink:[1,0,[]],
+        heuristicSearch:[1,0,[]]
+    }
+    // worker.postMessage({frist:1,second:2})
+    const workerBacktracking = new Worker("./js/backtracking.js")
+    const workerDancingLink = new Worker("./js/dancingLink.js")
+    const workerHeuristicSearch = new Worker("./js/heuristicSearch.js")
+    //注册消息事件处理函数
+    workerBacktracking.addEventListener("message",(event)=>{
+        if (event.data.type==="generate"){
+            //棋盘生成之后修改sudoku初盘
+            sudoku=event.data.sudoku;
+            //根据初盘再次发送求解请求
+            cleanMatrix();
+            noticeThread();
+            cleanTime();
+        }else if(event.data.type==="main"){
+            statMatrix.backtracking[0]=event.data.time;
+            statMatrix.backtracking[1]=event.data.isHaveSolution;
+            let temp={i:-1,j:-1,k:-1,sudoku:[]};
+
+            {
+                temp.i = event.data.i;
+                temp.j = event.data.j;
+                temp.k = event.data.k;
+                temp.sudoku = event.data.sudoku;
+            }
+            statMatrix.backtracking[2].push(temp);
+        }
+    })
+    workerDancingLink.addEventListener("message",(event)=>{
+        statMatrix.dancingLink[0]=event.data.time;
+        statMatrix.dancingLink[1]=event.data.isHaveSolution;
+        statMatrix.dancingLink[2].push(event.data.sudoku);
+    })
+    workerHeuristicSearch.addEventListener("message",(event)=>{
+        statMatrix.heuristicSearch[0]=event.data.time;
+        statMatrix.heuristicSearch[1]=event.data.isHaveSolution;
+        statMatrix.heuristicSearch[2].push(event.data.sudoku);
+    })
+
+    ///////////////////////////////////////////////////////////////////////
+    //服务函数
+
+    function readFilePath() {
+        //获取本地json文件的路径
+        const newFile_path = path.join(__dirname, 'data/data1.json').replace(/\\/g, "\/");
+        return JSON.parse(fs.readFileSync(newFile_path));
+    }
+
+    //获取当前算法类别1回溯，2启发式搜索，3舞蹈链，4分支限界
+    function getCurAlgorithm(){
+        switch ($(".is-active .algorithm")[0].innerText){
+            case "回溯法":{
+                return statMatrix.backtracking;
+            }
+            case "启发式搜索":{
+                return statMatrix.heuristicSearch;
+            }
+            case "舞蹈链":{
+                return statMatrix.backtracking;
+            }
+            case "分支限界":{
+                return 4;
+            }
+        }
+    }
+    function cleanMatrix(){
+        statMatrix={
+            backtracking:[1,0,[]],
+            dancingLink:[1,0,[]],
+            heuristicSearch:[1,0,[]]
+        }
+    }
+    function noticeThread() {
+        //通知线程开始执行
+        workerBacktracking.postMessage({type:"main","sudoku":sudoku});
+        workerDancingLink.postMessage({type:"main","sudoku":sudoku});
+        workerHeuristicSearch.postMessage({type:"main","sudoku":sudoku});
+    }
+    var renderAnimation=(t)=>{
+        let arr=getCurAlgorithm()[1];
+        let stepLength=0;
+        if(arr.length<t*60){
+            stepLength=1;
+        }else {
+            stepLength=arr.length/600;
+        }
+        let cur=0;
+        var runDownAnimation=()=>{
+            if (cur<arr.length) { // 在两秒后停止动画
+                renderSudoku(arr[cur]);
+                cur+=stepLength;
+                window.requestAnimationFrame(runDownAnimation);
+            }
+        }
+        window.requestAnimationFrame(runDownAnimation);
+    }
+    var updateTime=()=>{
+        vueInstance2.time=getCurAlgorithm()[0];
+    }
+    var cleanTime=()=>{
+        vueInstance2.time=0;
+    }
+    ///////////////////////////////////////////////////////////////////////////////////////
+    // 响应一系列按钮点击事件
+    // 按钮点击事件
+    var loadSudoku=()=> {
+        ipcRenderer.send('open-directory-dialog', 'openFile');
+        ipcRenderer.on('selectedItem', (event,message) => {
+            sudoku=JSON.parse(message);
+            render(sudoku);
+            //当接收到数独数据的时候立即创建worker执行四种算法，并将过程状态空间存放在内存中
+            //清空以往数据
+            cleanMatrix();
+            noticeThread();
+            cleanTime();
+        })
+    }
+    // 响应连续运行
+    var runDown=()=>{
+        renderAnimation(10);
+    }
+
+    // 慢速运行
+    var runDownSlowly=()=>{
+        renderAnimation(20);
+    }
+
+    // 单步运行
+    var runStep=()=>{
+        renderAnimation(getCurAlgorithm()[1].length);
+    }
+
+    // 生成棋盘
+    var generateInitSudoku=()=>{
+        workerBacktracking.postMessage({type:"generate"})
+        //更新棋盘和备份
+    }
+</script>
+<style>
+    table{
+        border-collapse: collapse;
+        border:4px solid #000000
+    }
+    td{
+        border:1px solid #000000;
+        padding: 0;
+        text-align: center;
+    }
+    .lattice{
+        width: 40px;
+        height: 40px;
+    }
+    .btn-pri{
+        padding: 10px;
+    }
+</style>
+<!--走马灯-->
+<style>
+    .el-carousel__item h3 {
+        color: #475669;
+        font-size: 14px;
+        opacity: 0.75;
+        line-height: 150px;
+        margin: 0;
+    }
+    .el-carousel__button{
+        background-color: #dd6161;
+    }
+    .el-carousel__container{
+        text-align: center;
+    }
+    /*.el-carousel__item:nth-child(2n) {*/
+    /*    background-color: #99a9bf;*/
+    /*}*/
+
+    /*.el-carousel__item:nth-child(2n+1) {*/
+    /*    background-color: #d3dce6;*/
+    /*}*/
+</style>
+<style>
+    .woc{
+        background-color:rgb(248,201,171);
+    }
+    .woc1{
+        background-color:rgb(173,216,253);
+    }
+    .niubi{
+        background-color:rgb(248,201,171);
+    }
+</style>
+</body>
+</html>
