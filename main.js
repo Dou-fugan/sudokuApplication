@@ -52,7 +52,8 @@ ipcMain.on('open-directory-dialog', function (event,p) {
     title:'请选择文件',
     buttonLabel:'确定',
     filters:[{
-      name:'code',extensions:['json']
+      name:'code'
+      // extensions:['json']
     }]
   }).then(result => {
     console.log(result);

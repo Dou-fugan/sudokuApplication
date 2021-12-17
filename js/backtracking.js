@@ -177,6 +177,7 @@ function backtracking(board){
                         // post每一个节点（post是在算法运行的过程中post的）
                         postMessage({type:"main","isHaveSolution":1,"sudoku":sudokuStat,"time":0,i:i,j,k:k});
                         // console.log(woc,sudokuStat.flat(2));
+                        woc++;
                         if (is_possible(board, i, j, k))
                         {
                             board[i][j] = k;
@@ -198,9 +199,9 @@ function backtracking(board){
     solve(board);
     let time2=performance.now();
     if(is_complete(board)){
-        postMessage({type:"main","isHaveSolution":1,"sudoku":sudokuStat,"time":0,i:-1,j:-1,k:-1});
+        postMessage({type:"main","isHaveSolution":1,"sudoku":sudokuStat,"time":time2-time1,i:-1,j:-1,k:-1});
     }else {
-        postMessage({type:"main","isHaveSolution":0,"sudoku":sudokuStat,"time":time2-time1,i:-1,j:-1,k:-1});
+        postMessage({type:"main","isHaveSolution":0,"sudoku":sudokuStat,"time":0,i:-1,j:-1,k:-1});
     }
     return board;
 }

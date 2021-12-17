@@ -44,7 +44,7 @@
                 </div>
             </div>
         </div>
-        <div style="padding-top: 30px;padding-left: 34px;width: 100px;">运行时间：{{time}}s</div>
+        <div style="padding-top: 30px;padding-left: 34px;width: 150px;">时间：{{time}} ms</div>
         <div ></div>
     </div>
     <style>
@@ -69,13 +69,16 @@
                         <el-button type="primary" onclick="runDown()">连续运行</el-button>
                     </div>
                     <div style="" class="btn-pri">
-                        <el-button type="primary" onclick="runStep()">单步运行</el-button>
+                        <el-button type="primary" onclick="runStep()">求解数独</el-button>
                     </div>
                     <div style="" class="btn-pri">
                         <el-button type="primary" onclick="runDownSlowly()">慢速运行</el-button>
                     </div>
                     <div style="" class="btn-pri">
                         <el-button type="primary" onclick="generateInitSudoku()">生成初盘</el-button>
+                    </div>
+                    <div style="" class="btn-pri">
+                        <el-button type="primary" onclick="renew()">恢复初盘</el-button>
                     </div>
 <!--                    <div style="">-->
 <!--                        <el-button type="primary">主要按钮</el-button>-->
@@ -158,36 +161,42 @@
 
         for(let i=0;i<9;i++){
             for(let j=0;j<9;j++){
-                $(lattice[9*i+j]).removeClass("woc1")
+                $(lattice[9*i+j]).removeClass("blue")
                 if(sudoku[i][j]===0){
                     lattice[9*i+j].innerText='';
                 }else {
                     lattice[9*i+j].innerText=sudoku[i][j];
-                    $(lattice[9*i+j]).addClass("woc1");
+                    $(lattice[9*i+j]).addClass("blue");
                 }
             }
         }
     }
     var renderSudoku=(data)=>{
+        console.log(data)
         let sudokuStat=data.sudoku;
+        console.log(sudokuStat);
+        //逐个判断
         for(let i=0;i<9;i++){
             for(let j=0;j<9;j++){
-                $(lattice[9*i+j]).removeClass("woc")
-                $(lattice[9*i+j]).removeClass("niubi")
-                if(sudoku[i][j]===0){
+                $(lattice[9*i+j]).removeClass("orange")
+                $(lattice[9*i+j]).removeClass("blue")
+                //如果为0则设置为空，不为0则添加蓝色
+                if(sudokuStat[i][j]===0){
                     lattice[9*i+j].innerText='';
                 }else {
                     lattice[9*i+j].innerText=sudokuStat[i][j];
-                    $(lattice[9*i+j]).addClass("woc")
+                    $(lattice[9*i+j]).addClass("blue")
                 }
+
+                //如果选中则设置为橘色
                 if(i===data.i){
-                    lattice[9*i+j].addClass("niubi");
+                    $(lattice[9*i+j]).addClass("orange");
                 }
-                if(j===data.k){
-                    $(lattice[9*i+j]).addClass("woc")
+                if(j===data.j){
+                    $(lattice[9*i+j]).addClass("orange")
                 }
-                if(Math.floor(i/3)===data.i&&Math.floor(j/3)===data.k){
-                    $(lattice[9*i+j]).addClass("woc")
+                if(Math.floor(i/3)===Math.floor(data.i/3)&&Math.floor(j/3)===Math.floor(data.j/3)){
+                    $(lattice[9*i+j]).addClass("orange")
                 }
             }
         }
@@ -216,7 +225,6 @@
             statMatrix.backtracking[0]=event.data.time;
             statMatrix.backtracking[1]=event.data.isHaveSolution;
             let temp={i:-1,j:-1,k:-1,sudoku:[]};
-
             {
                 temp.i = event.data.i;
                 temp.j = event.data.j;
@@ -227,6 +235,8 @@
         }
     })
     workerDancingLink.addEventListener("message",(event)=>{
+        // debugger
+        // render(event.data)
         statMatrix.dancingLink[0]=event.data.time;
         statMatrix.dancingLink[1]=event.data.isHaveSolution;
         statMatrix.dancingLink[2].push(event.data.sudoku);
@@ -256,7 +266,7 @@
                 return statMatrix.heuristicSearch;
             }
             case "舞蹈链":{
-                return statMatrix.backtracking;
+                return statMatrix.dancingLink;
             }
             case "分支限界":{
                 return 4;
@@ -276,26 +286,35 @@
         workerDancingLink.postMessage({type:"main","sudoku":sudoku});
         workerHeuristicSearch.postMessage({type:"main","sudoku":sudoku});
     }
-    var renderAnimation=(t)=>{
-        let arr=getCurAlgorithm()[1];
+    var renderAnimation=(t,eframes)=>{
+        let arr=getCurAlgorithm()[2];
         let stepLength=0;
         if(arr.length<t*60){
             stepLength=1;
         }else {
-            stepLength=arr.length/600;
+            stepLength=Math.floor(arr.length/600);
         }
         let cur=0;
+        let frames=eframes
         var runDownAnimation=()=>{
-            if (cur<arr.length) { // 在两秒后停止动画
-                renderSudoku(arr[cur]);
-                cur+=stepLength;
+
+            if (cur<arr.length) {
+                // debugger;
+                if(frames>0){
+                    frames--;
+                }else {
+                    frames=eframes;
+                    renderSudoku(arr[cur]);
+                    cur+=stepLength;
+                }
                 window.requestAnimationFrame(runDownAnimation);
             }
         }
         window.requestAnimationFrame(runDownAnimation);
     }
     var updateTime=()=>{
-        vueInstance2.time=getCurAlgorithm()[0];
+
+        vueInstance2.time=getCurAlgorithm()[0].toString().substring(0,5);
     }
     var cleanTime=()=>{
         vueInstance2.time=0;
@@ -317,23 +336,29 @@
     }
     // 响应连续运行
     var runDown=()=>{
-        renderAnimation(10);
+        renderAnimation(10,1);
+        updateTime();
     }
 
     // 慢速运行
     var runDownSlowly=()=>{
-        renderAnimation(20);
+        renderAnimation(20,5);
+        updateTime();
     }
 
     // 单步运行
     var runStep=()=>{
-        renderAnimation(getCurAlgorithm()[1].length);
     }
 
     // 生成棋盘
     var generateInitSudoku=()=>{
         workerBacktracking.postMessage({type:"generate"})
         //更新棋盘和备份
+    }
+
+    //恢复棋盘
+    var renew=()=>{
+        render(sudoku);
     }
 </script>
 <style>
@@ -378,14 +403,11 @@
     /*}*/
 </style>
 <style>
-    .woc{
-        background-color:rgb(248,201,171);
+    .orange{
+        background-color:rgb(248,201,171)!important;
     }
-    .woc1{
+    .blue{
         background-color:rgb(173,216,253);
-    }
-    .niubi{
-        background-color:rgb(248,201,171);
     }
 </style>
 </body>
